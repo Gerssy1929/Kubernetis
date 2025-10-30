@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: upc-devops
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-hello
+  namespace: upc-devops
+  labels:
+    app: web-hello
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web-hello
+  template:
+    metadata:
+      labels:
+        app: web-hello
+    spec:
+      containers:
+        - name: web-hello
+          image: nginx:1.25
+          env:
+            - name: APP_NAME
+              value: upc-devops
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-hello-svc
+  namespace: upc-devops
+spec:
+  selector:
+    app: web-hello
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP

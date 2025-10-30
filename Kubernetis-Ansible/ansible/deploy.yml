@@ -1,0 +1,52 @@
+---
+- name: Desplegar app en Kubernetis
+  hosts: mv
+  become: yes
+  environment:
+    PATH: "/snap/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+  tasks:
+    - name: Start microk8s
+      command: microk8s start
+
+    - name: Copiar manifests de Kubernetis
+      copy:
+        src: "{{ playbook_dir }}/../kubernetes/"
+        dest: /home/sysadmin/kubernetes/
+
+
+    - name: Aplicar manifiestos de Kubernetis
+      command: microk8s kubectl apply -f /home/sysadmin/kubernetes/deployment.yml
+
+
+    - name: Guardar observabilidad
+      shell: |
+        {
+          echo "--- Pods ---";
+          microk8s kubectl get pods -l app=web-hello -n upc-devops;
+          echo "--- Events ---";
+          microk8s kubectl get events -n upc-devops;
+          echo "--- Logs (primer pod) ---";
+          microk8s kubectl logs $(microk8s kubectl get pods -n upc-devops -l app=web-hello -o jsonpath='{.items[0].metadata.name}');
+          echo "--- Describe Deployment ---";
+          microk8s kubectl describe deploy web-hello -n upc-devops;
+          echo "--- Describe Service ---";
+          microk8s kubectl describe svc web-hello-svc -n upc-devops;
+        } > /home/{{ ansible_user }}/observabilidad.txt
+      args:
+        executable: /bin/bash
+
+    # *** Operaciones ***
+    - name: Escalar a 5 réplicas
+      command: microk8s kubectl scale deploy web-hello -n upc-devops --replicas=5
+
+    - name: Guardar resultados de operaciones
+      shell: |
+        {
+          echo "--- Rollout restart ---";
+          microk8s kubectl rollout restart deploy/web-hello -n upc-devops;
+          echo "--- Rollout history ---";
+          microk8s kubectl rollout history deploy/web-hello -n upc-devops;
+        } > /home/{{ ansible_user }}/operaciones.txt
+      args:
+        executable: /bin/bash
